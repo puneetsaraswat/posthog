@@ -1,0 +1,116 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    io.kompose.service: db
+  name: db-cm0
+data:
+  create-cyclotron-db.sh: |-
+    #!/bin/bash
+
+    set -e
+    set -u
+
+    echo "Checking if database 'cyclotron' exists..."
+    DB_EXISTS=$(psql -U "$POSTGRES_USER" -tAc "SELECT 1 FROM pg_database WHERE datname='cyclotron'")
+
+    if [ -z "$DB_EXISTS" ]; then
+        echo "Creating database 'cyclotron'..."
+        psql -U "$POSTGRES_USER" -c "CREATE DATABASE cyclotron;"
+        psql -U "$POSTGRES_USER" -c "GRANT ALL PRIVILEGES ON DATABASE cyclotron TO $POSTGRES_USER;"
+        echo "Database 'cyclotron' created successfully"
+    else
+        echo "Database 'cyclotron' already exists"
+    fi
+---
+apiVersion: apps/v1 # Changed API version for Deployment
+kind: Deployment # Changed kind to Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./kompose -f docker-compose.hobby.yml convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: db
+  name: db # Name of the Deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres # Selector for the Deployment to find its pods
+  template: # This is the Pod template definition
+    metadata:
+      labels:
+        app: postgres # Label applied to the Pod, matching the Deployment's selector
+        io.kompose.service: db
+    spec:
+      # # --- ADDED: Pod-level security context for volume ownership ---
+      # securityContext:
+      #   fsGroup: 999 # Set volume group ownership to 999 (common for postgres user)
+      containers:
+        - env:
+            - name: POSTGRES_DB
+              value: posthog
+            - name: POSTGRES_PASSWORD
+              value: posthog
+            - name: POSTGRES_USER
+              value: posthog
+            - name: PGDATA # --- ADDED: Specify subdirectory for data ---
+              value: /var/lib/postgresql/data
+          image: postgres:12-alpine
+          livenessProbe:
+            exec:
+              command:
+                - /usr/local/bin/pg_isready # Absolute path to the executable
+                - -U
+                - posthog
+            periodSeconds: 5
+            timeoutSeconds: 5
+          name: db
+          # --- ADDED: Container-level security context for user ID ---
+          # securityContext:
+          #   runAsUser: 999 # Run as the postgres user (UID 999 in official images)
+          #   runAsNonRoot: true # Enforce running as a non-root user
+          #   allowPrivilegeEscalation: false # Prevent privilege escalation
+          volumeMounts:
+            - mountPath: /docker-entrypoint-initdb.d
+              name: db-cm0
+            - mountPath: /var/lib/postgresql # --- CHANGED: Mount PVC to parent directory ---
+              name: postgres-data
+      volumes:
+        - configMap:
+            name: db-cm0
+          name: db-cm0
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: postgres-data
+---
+# --- PostgreSQL Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db # Name of the Service, used for DNS resolution within the cluster
+  labels:
+    app: postgres # Label for the Service itself
+spec:
+  selector:
+    app: postgres # Selects Pods with the label app: postgres
+  ports:
+    - protocol: TCP
+      port: 5432 # Default PostgreSQL port
+      targetPort: 5432 # Port on the PostgreSQL container
+      name: postgres # A descriptive name for the port
+  type: ClusterIP # Exposes the service internally within the cluster
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    io.kompose.service: postgres-data
+  name: postgres-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
