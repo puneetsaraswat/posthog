@@ -108,7 +108,7 @@ spec:
     app: web # Selects pods with label app: web
   ports:
     - name: http
-      port: 80
+      port: 8000
       targetPort: 8000 # Assuming PostHog backend listens on 8000
       protocol: TCP
   type: ClusterIP
