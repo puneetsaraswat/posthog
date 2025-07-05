@@ -28,9 +28,28 @@ spec:
               value: http://localhost:3000
             - name: TEMPORAL_CSRF_COOKIE_INSECURE
               value: "true"
+            - name: TEMPORAL_UI_PORT
+              value: "8080"
           image: temporalio/ui:2.31.2
           name: temporal-ui
           ports:
             - containerPort: 8080
               protocol: TCP
       restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    kompose.cmd: ./kompose -f docker-compose.hobby.yml convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: temporal-ui
+  name: temporal-ui
+spec:
+  ports:
+    - name: "8081"
+      port: 8081
+      targetPort: 8080
+  selector:
+    io.kompose.service: temporal-ui
