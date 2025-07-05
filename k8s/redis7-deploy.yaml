@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis7
+  labels:
+    app: redis7 # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis7 # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: redis7 # Essential label for Service selection and Deployment management
+    spec:
+      containers:
+        - name: redis7 # Container name first
+          image: redis:7.2-alpine
+          args:
+            - redis-server
+            - --maxmemory-policy
+            - allkeys-lru
+            - --maxmemory
+            - 200mb
+          livenessProbe:
+            exec:
+              command:
+                - redis-cli
+                - ping
+            failureThreshold: 10
+            periodSeconds: 3
+            timeoutSeconds: 10
+          volumeMounts:
+            - mountPath: /data
+              name: redis7-data
+      volumes:
+        - name: redis7-data
+          persistentVolumeClaim:
+            claimName: redis7-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis7
+  labels:
+    app: redis7 # Essential label for Service selection
+spec:
+  selector:
+    app: redis7 # Selects pods with label app: redis7
+  ports:
+    - name: redis-port
+      port: 6379 # Service port
+      targetPort: 6379 # Container port
+      protocol: TCP
+  type: ClusterIP
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    io.kompose.service: redis7-data
+  name: redis7-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi

@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  labels:
+    app: worker # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: worker # Essential label for Service selection and Deployment management
+    spec:
+      containers:
+        # --- FIX: Ensure env, image, name, etc., are correctly indented under the hyphen ---
+        - name: worker # Container name first
+          image: 'posthog/posthog:latest'
+          args:
+            - ./bin/docker-worker-celery
+            - --with-scheduler
+          env:
+            - name: API_QUERIES_PER_TEAM
+              value: '{"1": 7}'
+            - name: CDP_API_URL
+              value: http://plugins:6738
+            - name: CLICKHOUSE_API_PASSWORD
+              value: apipass
+            - name: CLICKHOUSE_API_USER
+              value: api
+            - name: CLICKHOUSE_APP_PASSWORD
+              value: apppass
+            - name: CLICKHOUSE_APP_USER
+              value: app
+            - name: CLICKHOUSE_DATABASE
+              value: posthog
+            - name: CLICKHOUSE_HOST
+              value: clickhouse
+            - name: CLICKHOUSE_SECURE
+              value: "false"
+            - name: CLICKHOUSE_VERIFY
+              value: "false"
+            - name: DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: DEPLOYMENT
+              value: hobby
+            - name: DISABLE_SECURE_SSL_REDIRECT
+              value: "true"
+            - name: ENCRYPTION_SALT_KEYS
+              # This variable is defined but has no value.
+            - name: IS_BEHIND_PROXY
+              value: "true"
+            - name: KAFKA_HOSTS
+              value: kafka
+            - name: OBJECT_STORAGE_ACCESS_KEY_ID
+              value: object_storage_root_user
+            - name: OBJECT_STORAGE_ENABLED
+              value: "true"
+            - name: OBJECT_STORAGE_ENDPOINT
+              value: http://objectstorage:19000
+            - name: OBJECT_STORAGE_SECRET_ACCESS_KEY
+              value: object_storage_root_password
+            - name: PGHOST
+              value: db
+            - name: PGPASSWORD
+              value: posthog
+            - name: PGUSER
+              value: posthog
+            - name: REDIS_URL
+              value: redis://redis:6379/
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: posthog-secrets
+                  key: SECRET_KEY
+            - name: SENTRY_DSN
+              # This variable is defined but has no value.
+            - name: SESSION_RECORDING_V2_S3_ENDPOINT
+              value: http://objectstorage:19000
+            - name: SITE_URL
+              value: https://
+      # No volumes defined in your original spec, so none are included here.

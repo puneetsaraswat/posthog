@@ -1,0 +1,108 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: web # Essential label for Service selection and Deployment management
+    spec:
+      containers:
+        - name: web # Container name first
+          image: 'posthog/posthog:latest'
+          args:
+            # Using sh -c to ensure both commands run and the container stays alive
+            - /bin/sh
+            - -c
+            - ./bin/start-backend & ./bin/start-frontend; wait
+          env:
+            - name: API_QUERIES_PER_TEAM
+              value: '{"1": 7}'
+            - name: CDP_API_URL
+              value: http://plugins:6738
+            - name: CLICKHOUSE_API_PASSWORD
+              value: apipass
+            - name: CLICKHOUSE_API_USER
+              value: api
+            - name: CLICKHOUSE_APP_PASSWORD
+              value: apppass
+            - name: CLICKHOUSE_APP_USER
+              value: app
+            - name: CLICKHOUSE_DATABASE
+              value: posthog
+            - name: CLICKHOUSE_HOST
+              value: clickhouse
+            - name: CLICKHOUSE_SECURE
+              value: "false"
+            - name: CLICKHOUSE_VERIFY
+              value: "false"
+            - name: DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: DEPLOYMENT
+              value: hobby
+            - name: DISABLE_SECURE_SSL_REDIRECT
+              value: "true"
+            - name: ENCRYPTION_SALT_KEYS
+            - name: IS_BEHIND_PROXY
+              value: "true"
+            - name: KAFKA_HOSTS
+              value: kafka
+            - name: LIVESTREAM_HOST
+              value: https://:8666
+            - name: OBJECT_STORAGE_ACCESS_KEY_ID
+              value: object_storage_root_user
+            - name: OBJECT_STORAGE_ENABLED
+              value: "true"
+            - name: OBJECT_STORAGE_ENDPOINT
+              value: http://objectstorage:19000
+            - name: OBJECT_STORAGE_SECRET_ACCESS_KEY
+              value: object_storage_root_password
+            - name: PGHOST
+              value: db
+            - name: PGPASSWORD
+              value: posthog
+            - name: PGUSER
+              value: posthog
+            - name: REDIS_URL
+              value: redis://redis:6379/
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: posthog-secrets
+                  key: SECRET_KEY
+            - name: SENTRY_DSN
+            - name: SESSION_RECORDING_V2_S3_ENDPOINT
+              value: http://objectstorage:19000
+            - name: SITE_URL
+              value: https://
+          volumeMounts:
+            - mountPath: /compose
+              name: web-claim0
+      volumes:
+        - name: web-claim0
+          persistentVolumeClaim:
+            claimName: web-claim0
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  labels:
+    app: web # Essential label for Service selection
+  namespace: pg
+spec:
+  selector:
+    app: web # Selects pods with label app: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8000 # Assuming PostHog backend listens on 8000
+      protocol: TCP
+  type: ClusterIP
