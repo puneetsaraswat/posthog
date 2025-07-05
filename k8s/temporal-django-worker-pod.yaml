@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    kompose.cmd: ./kompose -f docker-compose.hobby.yml convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: temporal-django-worker
+  name: temporal-django-worker
+spec:
+  containers:
+    - args:
+        - /compose/temporal-django-worker
+      env:
+        - name: API_QUERIES_PER_TEAM
+          value: '{"1": 7}'
+        - name: CDP_API_URL
+          value: http://plugins:6738
+        - name: CLICKHOUSE_API_PASSWORD
+          value: apipass
+        - name: CLICKHOUSE_API_USER
+          value: api
+        - name: CLICKHOUSE_APP_PASSWORD
+          value: apppass
+        - name: CLICKHOUSE_APP_USER
+          value: app
+        - name: CLICKHOUSE_DATABASE
+          value: posthog
+        - name: CLICKHOUSE_HOST
+          value: clickhouse
+        - name: CLICKHOUSE_SECURE
+          value: "false"
+        - name: CLICKHOUSE_VERIFY
+          value: "false"
+        - name: DATABASE_URL
+          value: postgres://posthog:posthog@db:5432/posthog
+        - name: DEPLOYMENT
+          value: hobby
+        - name: DISABLE_SECURE_SSL_REDIRECT
+          value: "true"
+        - name: IS_BEHIND_PROXY
+          value: "true"
+        - name: KAFKA_HOSTS
+          value: kafka
+        - name: PGHOST
+          value: db
+        - name: PGPASSWORD
+          value: posthog
+        - name: PGUSER
+          value: posthog
+        - name: REDIS_URL
+          value: redis://redis:6379/
+        - name: SECRET_KEY
+        - name: SENTRY_DSN
+        - name: SITE_URL
+          value: https://
+        - name: TEMPORAL_HOST
+          value: temporal
+      image: 'posthog/posthog:latest'
+      name: temporal-django-worker
+      volumeMounts:
+        - mountPath: /compose
+          name: temporal-django-worker-claim0
+  restartPolicy: OnFailure
+  volumes:
+    - name: temporal-django-worker-claim0
+      persistentVolumeClaim:
+        claimName: temporal-django-worker-claim0

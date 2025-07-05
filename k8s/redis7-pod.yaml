@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    kompose.cmd: ./kompose -f docker-compose.hobby.yml convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: redis7
+  name: redis7
+spec:
+  containers:
+    - args:
+        - redis-server
+        - --maxmemory-policy
+        - allkeys-lru
+        - --maxmemory
+        - 200mb
+      image: redis:7.2-alpine
+      livenessProbe:
+        exec:
+          command:
+            - redis-cli
+            - ping
+        failureThreshold: 10
+        periodSeconds: 3
+        timeoutSeconds: 10
+      name: redis7
+      volumeMounts:
+        - mountPath: /data
+          name: redis7-data
+  restartPolicy: OnFailure
+  volumes:
+    - name: redis7-data
+      persistentVolumeClaim:
+        claimName: redis7-data
