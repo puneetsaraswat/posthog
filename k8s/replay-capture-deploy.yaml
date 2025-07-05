@@ -1,38 +1,36 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: capture
+  name: replay-capture
   labels:
-    app: capture # Essential label for Deployment management
+    app: replay-capture # Essential label for Deployment management
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: capture # Matches the label on the Pod template
+      app: replay-capture # Matches the label on the Pod template
   template:
     metadata:
       labels:
-        app: capture # Essential label for Service selection and Deployment management
+        app: replay-capture # Essential label for Service selection and Deployment management
     spec:
       containers:
-        - name: capture # Container name first
+        - name: replay-capture # Container name first
           image: ghcr.io/posthog/posthog/capture:master
+          ports:
+            - containerPort: 3000 # The port the application listens on
+              protocol: TCP
           env:
             - name: ADDRESS
-              value: 0.0.0.0:3000 # The port the capture service listens on
+              value: 0.0.0.0:3000
             - name: CAPTURE_MODE
-              value: events
+              value: recordings
             - name: KAFKA_HOSTS
               value: kafka:9092
             - name: KAFKA_TOPIC
-              value: events_plugin_ingestion
+              value: session_recording_snapshot_item_events
             - name: REDIS_URL
               value: redis://redis:6379/
-            - name: RUST_LOG
-              value: info,rdkafka=warn
-          ports:
-            - containerPort: 3000 # Expose the port the application listens on
-              protocol: TCP
           resources:
             requests:
               cpu: 500m
@@ -45,14 +43,14 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: capture
+  name: replay-capture
   labels:
-    app: capture # Essential label for Service selection
+    app: replay-capture # Essential label for Service selection
 spec:
   selector:
-    app: capture # Selects pods with label app: capture
+    app: replay-capture # Selects pods with label app: replay-capture
   ports:
-    - name: http-capture
+    - name: http-replay-capture
       port: 3000 # Service port
       targetPort: 3000 # Container port
       protocol: TCP

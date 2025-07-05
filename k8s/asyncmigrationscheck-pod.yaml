@@ -65,4 +65,11 @@ spec:
           value: "0"
       image: 'posthog/posthog:latest'
       name: asyncmigrationscheck
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+        limits:
+          cpu: 500m
+          memory: 1Gi
   restartPolicy: Never

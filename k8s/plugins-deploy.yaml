@@ -65,6 +65,13 @@ spec:
               value: http://objectstorage:19000
             - name: SITE_URL
               value: https://
+          resources:
+            requests:
+              cpu: 500m
+              memory: 4Gi
+            limits:
+              cpu: 500m
+              memory: 4Gi
       # No volumes defined in your original spec, so none are included here.
 ---
 apiVersion: v1

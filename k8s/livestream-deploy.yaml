@@ -67,6 +67,13 @@ spec:
                 secretKeyRef:
                   name: livestream-secrets # Name of the Secret defined/created above
                   key: LIVESTREAM_JWT_SECRET # Key within that Secret
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
           volumeMounts:
             # Mount the config.yml file from the ConfigMap
             - mountPath: /configs/configs.yml

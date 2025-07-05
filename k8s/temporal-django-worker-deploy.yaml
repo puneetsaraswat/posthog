@@ -1,26 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: worker
+  name: temporal-django-worker
   labels:
-    app: worker # Essential label for Deployment management
+    app: temporal-django-worker # Essential label for Deployment management
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: worker # Matches the label on the Pod template
+      app: temporal-django-worker # Matches the label on the Pod template
   template:
     metadata:
       labels:
-        app: worker # Essential label for Service selection and Deployment management
+        app: temporal-django-worker # Essential label for Deployment management
     spec:
       containers:
-        # --- FIX: Ensure env, image, name, etc., are correctly indented under the hyphen ---
-        - name: worker # Container name first
+        - name: temporal-django-worker # Container name first
           image: 'posthog/posthog:latest'
           args:
-            - ./bin/docker-worker-celery
-            - --with-scheduler
+            - /compose/temporal-django-worker
           env:
             - name: API_QUERIES_PER_TEAM
               value: '{"1": 7}'
@@ -48,20 +46,10 @@ spec:
               value: hobby
             - name: DISABLE_SECURE_SSL_REDIRECT
               value: "true"
-            - name: ENCRYPTION_SALT_KEYS
-              # This variable is defined but has no value.
             - name: IS_BEHIND_PROXY
               value: "true"
             - name: KAFKA_HOSTS
               value: kafka
-            - name: OBJECT_STORAGE_ACCESS_KEY_ID
-              value: object_storage_root_user
-            - name: OBJECT_STORAGE_ENABLED
-              value: "true"
-            - name: OBJECT_STORAGE_ENDPOINT
-              value: http://objectstorage:19000
-            - name: OBJECT_STORAGE_SECRET_ACCESS_KEY
-              value: object_storage_root_password
             - name: PGHOST
               value: db
             - name: PGPASSWORD
@@ -73,14 +61,13 @@ spec:
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: posthog-secrets
+                  name: posthog-secrets # Ensure this Secret exists and has 'SECRET_KEY'
                   key: SECRET_KEY
-            - name: SENTRY_DSN
-              # This variable is defined but has no value.
-            - name: SESSION_RECORDING_V2_S3_ENDPOINT
-              value: http://objectstorage:19000
+            - name: SENTRY_DSN # No value provided in original spec
             - name: SITE_URL
               value: https://
+            - name: TEMPORAL_HOST
+              value: temporal
           resources:
             requests:
               cpu: 500m
@@ -88,4 +75,23 @@ spec:
             limits:
               cpu: 500m
               memory: 4Gi
-      # No volumes defined in your original spec, so none are included here.
+          volumeMounts:
+            - mountPath: /compose
+              name: temporal-django-worker-data
+      volumes:
+        - name: temporal-django-worker-data
+          persistentVolumeClaim:
+            claimName: temporal-django-worker-data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: temporal-django-worker-data
+  labels:
+    app: temporal-django-worker # Label for the PVC, useful for management
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi

@@ -82,6 +82,13 @@ spec:
               value: http://objectstorage:19000
             - name: SITE_URL
               value: https://
+          resources:
+            requests:
+              cpu: 500m
+              memory: 4Gi
+            limits:
+              cpu: 500m
+              memory: 4Gi
           volumeMounts:
             - mountPath: /compose
               name: web-claim0
@@ -96,7 +103,6 @@ metadata:
   name: web
   labels:
     app: web # Essential label for Service selection
-  namespace: pg
 spec:
   selector:
     app: web # Selects pods with label app: web

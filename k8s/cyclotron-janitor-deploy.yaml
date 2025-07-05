@@ -25,4 +25,11 @@ spec:
             - name: KAFKA_TOPIC
               value: clickhouse_app_metrics2
             - name: SENTRY_DSN # No value provided in original spec
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
       # No volumes defined in your original spec, so none are included here.
