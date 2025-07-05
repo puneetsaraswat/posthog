@@ -1,0 +1,97 @@
+# --- Zookeeper Deployment ---
+apiVersion: apps/v1 # Changed API version for Deployment
+kind: Deployment # Changed kind to Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./kompose -f docker-compose.hobby.yml convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: zookeeper
+  name: zookeeper
+spec:
+  replicas: 1 # Number of Zookeeper pods you want to run
+  selector: # How the Deployment finds its pods
+    matchLabels:
+      app: zookeeper # A common label to identify the application
+  template: # This is the Pod template definition
+    metadata:
+      labels:
+        app: zookeeper # Must match spec.selector.matchLabels
+        io.kompose.service: zookeeper # Keep existing label from kompose
+    spec:
+      # --- ADDED: Pod-level security context for volume ownership ---
+      securityContext:
+        fsGroup: 1001 # Ensure the volumes are owned by GID 1001
+      containers:
+        - image: zookeeper:3.7.0
+          name: zookeeper
+          # For the official Zookeeper image, it often runs as root by default.
+          # We are not explicitly setting runAsUser or runAsNonRoot here,
+          # but fsGroup helps ensure volume permissions are correct.
+          volumeMounts:
+            - mountPath: /datalog
+              name: zookeeper-datalog
+            - mountPath: /data
+              name: zookeeper-data
+            - mountPath: /logs
+              name: zookeeper-logs
+      volumes:
+        - name: zookeeper-datalog
+          persistentVolumeClaim:
+            claimName: zookeeper-datalog
+        - name: zookeeper-data
+          persistentVolumeClaim:
+            claimName: zookeeper-data
+        - name: zookeeper-logs
+          persistentVolumeClaim:
+            claimName: zookeeper-logs
+---
+# --- Zookeeper Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper # Name of the Service, used for DNS resolution within the cluster
+  labels:
+    app: zookeeper # Label for the Service itself
+spec:
+  selector:
+    app: zookeeper # Selects Pods with the label app: zookeeper
+  ports:
+    - protocol: TCP
+      port: 2181 # Port on the Service
+      targetPort: 2181 # Port on the Zookeeper container
+      name: client # A descriptive name for the port
+  type: ClusterIP # Default type, exposes the service internally within the cluster
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zookeeper-datalog
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi # Adjust size as needed for transaction logs
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zookeeper-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi # Adjust size as needed for snapshot data
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zookeeper-logs
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi # Adjust size as needed for general logs

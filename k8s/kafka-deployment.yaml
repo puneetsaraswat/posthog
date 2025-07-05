@@ -1,0 +1,97 @@
+apiVersion: apps/v1 # Changed API version for Deployment
+kind: Deployment # Changed kind to Deployment
+metadata:
+  annotations:
+    kompose.cmd: ./kompose -f docker-compose.hobby.yml convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: kafka
+  name: kafka
+spec:
+  replicas: 1 # Number of Kafka pods you want to run
+  selector: # How the Deployment finds its pods
+    matchLabels:
+      app: kafka # A common label to identify the application
+  template: # This is the Pod template definition
+    metadata:
+      labels:
+        app: kafka # Must match spec.selector.matchLabels
+        io.kompose.service: kafka # Keep existing label from kompose
+    spec:
+      securityContext:
+        fsGroup: 1001 # Ensure the volume is owned by GID 1001
+      containers:
+        - env:
+            - name: ALLOW_PLAINTEXT_LISTENER
+              value: "true"
+            - name: KAFKA_BROKER_ID
+              value: "1001"
+            - name: KAFKA_CFG_ADVERTISED_LISTENERS
+              value: PLAINTEXT://kafka:9092
+            - name: KAFKA_CFG_LISTENERS
+              value: PLAINTEXT://:9092
+            - name: KAFKA_CFG_RESERVED_BROKER_MAX_ID
+              value: "1001"
+            - name: KAFKA_CFG_ZOOKEEPER_CONNECT
+              value: zookeeper:2181
+            - name: KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS
+              value: "300000"
+            - name: KAFKA_LOG_RETENTION_HOURS
+              value: "1"
+            - name: KAFKA_LOG_RETENTION_MS
+              value: "3600000"
+          image: ghcr.io/posthog/kafka-container:v2.8.2
+          livenessProbe:
+            exec:
+              command:
+                - kafka-cluster.sh cluster-id --bootstrap-server localhost:9092 || exit 1
+            failureThreshold: 10
+            periodSeconds: 3
+            timeoutSeconds: 10
+          name: kafka
+          securityContext:
+            runAsUser: 1001
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - mountPath: /bitnami/kafka
+              name: kafka-data
+      volumes:
+        - name: kafka-data
+          persistentVolumeClaim:
+            claimName: kafka-data
+      # restartPolicy is typically handled by the Deployment controller for its Pods (defaults to Always)
+      # so you generally don't specify it explicitly here unless you need something like Never.
+      # The previous 'OnFailure' is usually not desired for a Deployment managing a service.
+
+---
+# --- Kafka Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka # Name of the Service, used for DNS resolution within the cluster
+  labels:
+    app: kafka # Label for the Service itself
+spec:
+  selector:
+    app: kafka # Selects Pods with the label app: kafka
+  ports:
+    - protocol: TCP
+      port: 9092 # Port on the Service
+      targetPort: 9092 # Port on the Kafka container
+      name: plaintext # A descriptive name for the port
+  type: ClusterIP # Default type, exposes the service internally within the cluster
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    io.kompose.service: kafka-data
+  name: kafka-data
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
