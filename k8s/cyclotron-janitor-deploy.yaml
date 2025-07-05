@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cyclotron-janitor
+  labels:
+    app: cyclotron-janitor # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cyclotron-janitor # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: cyclotron-janitor # Essential label for Deployment management
+    spec:
+      containers:
+        - name: cyclotron-janitor # Container name first
+          image: ghcr.io/posthog/posthog/cyclotron-janitor:master
+          env:
+            - name: DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: KAFKA_HOSTS
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: clickhouse_app_metrics2
+            - name: SENTRY_DSN # No value provided in original spec
+      # No volumes defined in your original spec, so none are included here.

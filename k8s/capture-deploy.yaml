@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: capture
+  labels:
+    app: capture # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: capture # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: capture # Essential label for Service selection and Deployment management
+    spec:
+      containers:
+        - name: capture # Container name first
+          image: ghcr.io/posthog/posthog/capture:master
+          env:
+            - name: ADDRESS
+              value: 0.0.0.0:3000 # The port the capture service listens on
+            - name: CAPTURE_MODE
+              value: events
+            - name: KAFKA_HOSTS
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: events_plugin_ingestion
+            - name: REDIS_URL
+              value: redis://redis:6379/
+            - name: RUST_LOG
+              value: info,rdkafka=warn
+          ports:
+            - containerPort: 3000 # Expose the port the application listens on
+              protocol: TCP
+      # No volumes defined in your original spec, so none are included here.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: capture
+  labels:
+    app: capture # Essential label for Service selection
+spec:
+  selector:
+    app: capture # Selects pods with label app: capture
+  ports:
+    - name: http-capture
+      port: 3000 # Service port
+      targetPort: 3000 # Container port
+      protocol: TCP
+  type: ClusterIP # Typically internal access, change to NodePort/LoadBalancer if external access is needed

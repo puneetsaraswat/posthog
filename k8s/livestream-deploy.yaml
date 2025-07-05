@@ -1,0 +1,97 @@
+# --- Livestream ConfigMap (REQUIRED!) ---
+# This ConfigMap will hold the content of your /configs/configs.yml file.
+# You must create this ConfigMap BEFORE deploying Livestream.
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: livestream-config
+  labels:
+    app: livestream
+data:
+  configs.yml: |
+    # Your actual /configs/configs.yml content goes here.
+    # Example (adjust as needed for your Temporal Livestream configuration):
+    server:
+      listen_address: "0.0.0.0:8080"
+    # kafka:
+    #   brokers:
+    #     - kafka:9092
+    #   topic: livestream_events
+    # jwt:
+    #   secret: "YOUR_JWT_SECRET_FROM_ENV_VAR" # This would be pulled from LIVESTREAM_JWT_SECRET env var
+    # ...
+---
+
+# --- Livestream Secret (FOR DEVELOPMENT ONLY - PLACEHOLDER) ---
+# For development environments, a placeholder secret can be defined directly.
+# In production, use 'kubectl create secret' or a secrets management system.
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: livestream-secrets
+  labels:
+    app: livestream
+type: Opaque # Standard type for arbitrary user-defined data
+stringData:
+  LIVESTREAM_JWT_SECRET: "your-dev-jwt-secret-placeholder" # <-- PLACEHOLDER VALUE
+---
+
+# --- Livestream Deployment ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: livestream
+  labels:
+    app: livestream # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: livestream # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: livestream # Essential label for Service selection and Deployment management
+    spec:
+      containers:
+        - name: livestream # Container name first
+          image: ghcr.io/posthog/livestream:main
+          ports:
+            - containerPort: 8080 # The port the application listens on
+              protocol: TCP
+          env:
+            - name: LIVESTREAM_JWT_SECRET
+              valueFrom: # Get secret from Kubernetes Secret
+                secretKeyRef:
+                  name: livestream-secrets # Name of the Secret defined/created above
+                  key: LIVESTREAM_JWT_SECRET # Key within that Secret
+          volumeMounts:
+            # Mount the config.yml file from the ConfigMap
+            - mountPath: /configs/configs.yml
+              name: livestream-config-volume # Refers to the volume defined below
+              subPath: configs.yml # Mounts only the 'configs.yml' file from the ConfigMap
+      volumes:
+        # Define the ConfigMap volume
+        - name: livestream-config-volume
+          configMap:
+            name: livestream-config # Name of the ConfigMap created above
+---
+
+# --- Livestream Service ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: livestream
+  labels:
+    app: livestream # Essential label for Service selection
+spec:
+  selector:
+    app: livestream # Selects pods with label app: livestream
+  ports:
+    - name: http-livestream
+      port: 8666 # Service port (as per your original spec)
+      targetPort: 8080 # Container port
+      protocol: TCP
+  type: ClusterIP # Typically internal access, change to NodePort/LoadBalancer if external access is needed

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cyclotron-fetch
+  labels:
+    app: cyclotron-fetch # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cyclotron-fetch # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: cyclotron-fetch # Essential label for Deployment management
+    spec:
+      containers:
+        - name: cyclotron-fetch # Container name first
+          image: ghcr.io/posthog/posthog/cyclotron-fetch:master
+          env:
+            - name: DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: DEBUG
+              value: "1"
+            - name: JOB_POLL_INTERVAL
+              value: 1s
+            - name: KAFKA_HOSTS
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: clickhouse_app_metrics2
+            - name: MAX_CONCURRENT_JOBS
+              value: "10"
+            - name: RUST_LOG
+              value: info
+            - name: SENTRY_DSN # No value provided in original spec
+            - name: WORKER_ID
+              value: default_worker_id
+      # No volumes defined in your original spec, so none are included here.

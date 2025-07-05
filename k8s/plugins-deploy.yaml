@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plugins
+  labels:
+    app: plugins # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: plugins # Matches the label on the Pod template
+  template:
+    metadata:
+      labels:
+        app: plugins # Essential label for Service selection and Deployment management
+    spec:
+      containers:
+        - name: plugins # Container name first
+          image: 'posthog/posthog:latest'
+          args:
+            - ./bin/plugin-server
+            - --no-restart-loop
+          ports: # Assuming plugin-server listens on 6738
+            - containerPort: 6738
+              protocol: TCP
+          env:
+            - name: CDP_REDIS_HOST
+              value: redis7
+            - name: CDP_REDIS_PORT
+              value: "6379"
+            - name: CLICKHOUSE_DATABASE
+              value: posthog
+            - name: CLICKHOUSE_HOST
+              value: clickhouse
+            - name: CLICKHOUSE_SECURE
+              value: "false"
+            - name: CLICKHOUSE_VERIFY
+              value: "false"
+            - name: CYCLOTRON_DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: ENCRYPTION_SALT_KEYS # No value provided in original spec
+            - name: KAFKA_HOSTS
+              value: kafka:9092
+            - name: OBJECT_STORAGE_ACCESS_KEY_ID
+              value: object_storage_root_user
+            - name: OBJECT_STORAGE_ENABLED
+              value: "true"
+            - name: OBJECT_STORAGE_ENDPOINT
+              value: http://objectstorage:19000
+            - name: OBJECT_STORAGE_SECRET_ACCESS_KEY
+              value: object_storage_root_password
+            - name: PERSONS_DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: REDIS_URL
+              value: redis://redis:6379/
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: posthog-secrets # Ensure this Secret exists and has 'SECRET_KEY'
+                  key: SECRET_KEY
+            - name: SENTRY_DSN # No value provided in original spec
+            - name: SESSION_RECORDING_V2_S3_ENDPOINT
+              value: http://objectstorage:19000
+            - name: SITE_URL
+              value: https://
+      # No volumes defined in your original spec, so none are included here.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: plugins
+  labels:
+    app: plugins # Essential label for Service selection
+spec:
+  selector:
+    app: plugins # Selects pods with label app: plugins
+  ports:
+    - name: http-plugins
+      port: 6738 # Service port
+      targetPort: 6738 # Container port (assuming plugin-server listens on this)
+      protocol: TCP
+  type: ClusterIP # Typically internal access, change to NodePort/LoadBalancer if external access is needed

@@ -54,6 +54,10 @@ spec:
         - name: REDIS_URL
           value: redis://redis:6379/
         - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: posthog-secrets
+              key: SECRET_KEY
         - name: SENTRY_DSN
         - name: SITE_URL
           value: https://

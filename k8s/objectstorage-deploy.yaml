@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: objectstorage
+  labels:
+    app: objectstorage # Essential label for Deployment management
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: objectstorage # Matches the label on the Pod template
+  strategy:
+    type: Recreate # Ensures clean restarts for stateful single instances
+  template:
+    metadata:
+      labels:
+        app: objectstorage # Essential label for Service selection and Deployment management
+    spec:
+      containers:
+        - name: objectstorage # Container name first
+          image: minio/minio:RELEASE.2025-02-18T16-25-55Z
+          command:
+            - sh
+          args:
+            - -c
+            - mkdir -p /data/posthog && minio server --address ":19000" --console-address ":19001" /data
+          ports:
+            - containerPort: 19000 # Minio API port
+              protocol: TCP
+            - containerPort: 19001 # Minio Console port
+              protocol: TCP
+          env:
+            # WARNING: These secrets are exposed in plain text for development.
+            # For production, use valueFrom.secretKeyRef.
+            - name: MINIO_ROOT_PASSWORD
+              value: object_storage_root_password
+            - name: MINIO_ROOT_USER
+              value: object_storage_root_user
+          volumeMounts:
+            - mountPath: /data
+              name: objectstorage-data # Renamed volume for clarity
+      volumes:
+        - name: objectstorage-data # Renamed volume for clarity
+          persistentVolumeClaim:
+            claimName: objectstorage # PVC name remains 'objectstorage'
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: objectstorage # PVC name remains 'objectstorage'
+  labels:
+    app: objectstorage # Label for the PVC, useful for management
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: objectstorage
+  labels:
+    app: objectstorage # Essential label for Service selection
+spec:
+  selector:
+    app: objectstorage # Selects pods with label app: objectstorage
+  ports:
+    - name: api
+      port: 19000
+      targetPort: 19000
+      protocol: TCP
+    - name: console
+      port: 19001
+      targetPort: 19001
+      protocol: TCP
