@@ -6,7 +6,7 @@ metadata:
     app: caddy-proxy
 data:
   Caddyfile: |
-    http://localhost:8000 {
+    http://:8000 {
         @replay-capture {
             path /s
             path /s/*

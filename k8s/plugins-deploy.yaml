@@ -40,7 +40,11 @@ spec:
               value: postgres://posthog:posthog@db:5432/posthog
             - name: DATABASE_URL
               value: postgres://posthog:posthog@db:5432/posthog
-            - name: ENCRYPTION_SALT_KEYS # No value provided in original spec
+            - name: ENCRYPTION_SALT_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: posthog-secrets
+                  key: ENCRYPTION_SALT_KEYS
             - name: KAFKA_HOSTS
               value: kafka:9092
             - name: OBJECT_STORAGE_ACCESS_KEY_ID

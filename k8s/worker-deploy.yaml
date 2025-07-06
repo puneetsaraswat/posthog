@@ -49,7 +49,10 @@ spec:
             - name: DISABLE_SECURE_SSL_REDIRECT
               value: "true"
             - name: ENCRYPTION_SALT_KEYS
-              # This variable is defined but has no value.
+              valueFrom:
+                secretKeyRef:
+                  name: posthog-secrets
+                  key: ENCRYPTION_SALT_KEYS
             - name: IS_BEHIND_PROXY
               value: "true"
             - name: KAFKA_HOSTS

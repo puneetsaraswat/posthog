@@ -14,6 +14,43 @@ spec:
       labels:
         app: web # Essential label for Service selection and Deployment management
     spec:
+      initContainers:
+        - name: django-migrate
+          image: 'posthog/posthog:latest'
+          command: ["python", "manage.py", "migrate", "--run-syncdb", "--skip-checks"]
+          env:
+            - name: SKIP_ASYNC_MIGRATIONS_SETUP
+              value: "1"
+            - name: DATABASE_URL
+              value: postgres://posthog:posthog@db:5432/posthog
+            - name: PGHOST
+              value: db
+            - name: PGPASSWORD
+              value: posthog
+            - name: PGUSER
+              value: posthog
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: posthog-secrets
+                  key: SECRET_KEY
+            - name: REDIS_URL
+              value: redis://redis:6379/
+            - name: CLICKHOUSE_HOST
+              value: clickhouse
+            - name: CLICKHOUSE_SECURE
+              value: "false"
+            - name: CLICKHOUSE_VERIFY
+              value: "false"
+            - name: DEPLOYMENT
+              value: hobby
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 500m
+              memory: 1Gi
       containers:
         - name: web # Container name first
           image: 'posthog/posthog:latest'
@@ -50,6 +87,10 @@ spec:
             - name: DISABLE_SECURE_SSL_REDIRECT
               value: "true"
             - name: ENCRYPTION_SALT_KEYS
+              valueFrom:
+                secretKeyRef:
+                  name: posthog-secrets
+                  key: ENCRYPTION_SALT_KEYS
             - name: IS_BEHIND_PROXY
               value: "true"
             - name: KAFKA_HOSTS
