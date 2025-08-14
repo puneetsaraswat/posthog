@@ -28,7 +28,7 @@ from posthog.exceptions import (
 )
 from posthog.geoip import get_geoip_properties
 from posthog.logging.timing import timed
-from posthog.metrics import LABEL_TEAM_ID
+from posthog.metrics import LABEL_TEAM_ID, DECIDE_ENDPOINT_COUNTER, DECIDE_ENDPOINT_DURATION
 from posthog.models import Team, User
 from posthog.models.feature_flag import get_all_feature_flags_with_details
 from posthog.models.feature_flag.flag_analytics import increment_request_count
@@ -232,6 +232,8 @@ def get_decide(request: HttpRequest) -> HttpResponse:
     The decide endpoint is a critical API that tells PostHog clients (like posthog-js) how they should behave,
     including which feature flags are enabled, whether to record sessions, etc.
     """
+    team_id_for_metrics = "unknown"
+    
     # --- 1. Handle non-POST requests ---
     if request.method == "OPTIONS":
         return cors_response(request, JsonResponse({"status": 1}))
@@ -341,6 +343,7 @@ def get_decide(request: HttpRequest) -> HttpResponse:
             )
 
         token = team.api_token
+        team_id_for_metrics = str(team.id)
         structlog.contextvars.bind_contextvars(team_id=team.id)
 
         maybe_log_decide_data(request_body=data)
@@ -390,10 +393,17 @@ def get_decide(request: HttpRequest) -> HttpResponse:
             ),
         )
 
-    statsd.incr(f"posthog_cloud_raw_endpoint_success", tags={"endpoint": "decide"})
-    maybe_log_decide_data(response_body=response)
+        statsd.incr(f"posthog_cloud_raw_endpoint_success", tags={"endpoint": "decide"})
+        maybe_log_decide_data(response_body=response)
 
-    return cors_response(request, JsonResponse(response))
+        # Track decide endpoint metrics for production readiness monitoring
+        DECIDE_ENDPOINT_COUNTER.labels(
+            team_id=team_id_for_metrics, 
+            status="success", 
+            race_condition_detected="false"
+        ).inc()
+
+        return cors_response(request, JsonResponse(response))
 
 
 @tracer.start_as_current_span("get_feature_flags_response_or_body")

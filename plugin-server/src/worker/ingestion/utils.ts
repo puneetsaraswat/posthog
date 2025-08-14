@@ -77,7 +77,18 @@ export async function captureIngestionWarning(
     debounce?: { key?: string; alwaysSend?: boolean }
 ) {
     const limiter_key = `${teamId}:${type}:${debounce?.key || ''}`
-    if (!!debounce?.alwaysSend || IngestionWarningLimiter.consume(limiter_key, 1)) {
+    const wasRateLimited = !IngestionWarningLimiter.consume(limiter_key, 1)
+    
+    // Track ingestion warning metrics for production readiness monitoring
+    logger.info('Ingestion warning captured', {
+        team_id: teamId,
+        warning_type: type,
+        rate_limited: wasRateLimited,
+        always_send: !!debounce?.alwaysSend,
+        details: Object.keys(details).length > 0 ? Object.keys(details) : []
+    })
+    
+    if (!!debounce?.alwaysSend || !wasRateLimited) {
         // TODO: Either here or in follow up change this to an await as we do care.
         void kafkaProducer
             .queueMessages({

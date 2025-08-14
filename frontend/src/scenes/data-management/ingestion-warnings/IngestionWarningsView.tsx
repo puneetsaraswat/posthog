@@ -18,7 +18,7 @@ const WARNING_TYPE_TO_DESCRIPTION = {
     cannot_merge_with_illegal_distinct_id: 'Refused to merge with an illegal distinct id',
     skipping_event_invalid_uuid: 'Refused to process event with invalid uuid',
     ignored_invalid_timestamp: 'Ignored an invalid timestamp, event was still ingested',
-    event_timestamp_in_future: 'An event was sent more than 23 hours in the future',
+    event_timestamp_in_future: 'An event was sent more than 23 hours in the future and was adjusted to the current time to prevent data integrity issues',
     ingestion_capacity_overflow: 'Event ingestion has overflowed capacity',
     message_size_too_large: 'Discarded event exceeding 1MB limit',
     replay_timestamp_invalid: 'Replay event timestamp is invalid',
@@ -103,7 +103,7 @@ const WARNING_TYPE_RENDERER = {
         }
         return (
             <>
-                The event timestamp computed too far in the future, so the capture time was used instead. Event values:
+                The event timestamp was more than 23 hours in the future, indicating a potential clock skew or instrumentation issue. The timestamp was automatically adjusted to the server capture time to maintain data integrity. Event values:
                 <ul>
                     <li>Computed timestamp: {details.result}</li>
                     {details.eventUuid ? <li>Event UUID: {details.eventUuid}</li> : ''}

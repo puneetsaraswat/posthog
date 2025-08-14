@@ -6,6 +6,9 @@ import { captureException } from '../../utils/posthog'
 
 type IngestionWarningCallback = (type: string, details: Record<string, any>) => void
 
+// Production readiness monitoring: 23-hour cutoff for future-dated events
+// This cutoff helps identify instrumentation issues and clock skew problems
+// Events beyond this threshold trigger ingestion warnings for monitoring
 const FutureEventHoursCutoffMillis = 23 * 3600 * 1000 // 23 hours
 
 export function parseEventTimestamp(data: PluginEvent, callback?: IngestionWarningCallback): DateTime {
@@ -27,8 +30,12 @@ export function parseEventTimestamp(data: PluginEvent, callback?: IngestionWarni
 
     let parsedTs = handleTimestamp(data, now, sentAt, data.team_id)
 
-    // Events in the future would indicate an instrumentation bug, lets' ingest them
-    // but publish an integration warning to help diagnose such issues.
+    // Production readiness monitoring: Events in the future indicate an instrumentation bug
+    // This is a critical metric for deployment monitoring as it can signal:
+    // - Clock skew between client and server
+    // - Incorrect SDK configuration  
+    // - Timezone handling issues
+    // We ingest the event but adjust timestamp and publish a warning for monitoring
     // We will also 'fix' the date to be now()
     const nowDiff = parsedTs.toUTC().diff(now).toMillis()
     if (nowDiff > FutureEventHoursCutoffMillis) {

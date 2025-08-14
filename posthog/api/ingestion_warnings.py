@@ -8,6 +8,7 @@ from rest_framework.response import Response
 
 from posthog.api.routing import TeamAndOrgViewSetMixin
 from posthog.clickhouse.client import sync_execute
+from posthog.metrics import INGESTION_WARNING_COUNTER
 
 
 class IngestionWarningsViewSet(TeamAndOrgViewSetMixin, viewsets.ViewSet):
@@ -52,6 +53,13 @@ class IngestionWarningsViewSet(TeamAndOrgViewSetMixin, viewsets.ViewSet):
                 "search": request.GET.get("q", None),
             },
         )
+        
+        # Track ingestion warning queries for monitoring
+        for warning_type, count, _, _ in warning_events:
+            INGESTION_WARNING_COUNTER.labels(
+                team_id=str(self.team_id), 
+                warning_type=warning_type
+            ).inc(count)
 
         return Response({"results": _calculate_summaries(warning_events)})
 

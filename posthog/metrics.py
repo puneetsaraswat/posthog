@@ -3,7 +3,7 @@ from contextlib import contextmanager
 
 import structlog
 from django.conf import settings
-from prometheus_client import CollectorRegistry, Counter, push_to_gateway
+from prometheus_client import CollectorRegistry, Counter, Histogram, push_to_gateway
 from posthog.exceptions_capture import capture_exception
 
 logger = structlog.get_logger(__name__)
@@ -25,6 +25,49 @@ KLUDGES_COUNTER = Counter(
     "posthog_kludges_total",
     "Tracking code paths eligible for deletion if they are not used.",
     labelnames=["kludge"],
+)
+
+# Production readiness monitoring metrics
+PERSONS_ON_EVENTS_QUERY_COUNTER = Counter(
+    "posthog_persons_on_events_queries_total",
+    "Count of queries using persons on events feature",
+    labelnames=[LABEL_TEAM_ID, "query_type", "enabled"],
+)
+
+PERSONS_ON_EVENTS_QUERY_DURATION = Histogram(
+    "posthog_persons_on_events_query_duration_seconds",
+    "Duration of queries using persons on events feature",
+    labelnames=[LABEL_TEAM_ID, "query_type", "enabled"],
+)
+
+METADATA_PARSING_DURATION = Histogram(
+    "posthog_metadata_parsing_duration_seconds",
+    "Duration of metadata parsing operations",
+    labelnames=[LABEL_TEAM_ID, "operation_type"],
+)
+
+METADATA_PARSING_COUNTER = Counter(
+    "posthog_metadata_parsing_total",
+    "Count of metadata parsing operations",
+    labelnames=[LABEL_TEAM_ID, "operation_type", "status"],
+)
+
+DECIDE_ENDPOINT_COUNTER = Counter(
+    "posthog_decide_endpoint_requests_total",
+    "Count of decide endpoint requests",
+    labelnames=[LABEL_TEAM_ID, "status", "race_condition_detected"],
+)
+
+DECIDE_ENDPOINT_DURATION = Histogram(
+    "posthog_decide_endpoint_duration_seconds",
+    "Duration of decide endpoint requests",
+    labelnames=[LABEL_TEAM_ID, "status"],
+)
+
+INGESTION_WARNING_COUNTER = Counter(
+    "posthog_ingestion_warnings_total",
+    "Count of ingestion warnings by type",
+    labelnames=[LABEL_TEAM_ID, "warning_type"],
 )
 
 
