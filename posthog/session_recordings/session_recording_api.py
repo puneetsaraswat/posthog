@@ -75,6 +75,7 @@ from posthog.session_recordings.realtime_snapshots import (
 from tenacity import retry, wait_random_exponential, retry_if_exception_type, stop_after_attempt
 from posthog.session_recordings.session_recording_v2_service import list_blocks
 from posthog.session_recordings.utils import clean_prompt_whitespace
+from posthog.session_recordings.performance_monitor import performance_monitor, monitor_performance
 from posthog.settings.session_replay import SESSION_REPLAY_AI_REGEX_MODEL
 from posthog.storage import object_storage, session_recording_v2_object_storage
 from posthog.storage.session_recording_v2_object_storage import BlockFetchError
@@ -495,10 +496,13 @@ class SessionRecordingViewSet(TeamAndOrgViewSetMixin, viewsets.GenericViewSet, U
             query = filter_from_params_to_query(request.GET.dict())
 
             self._maybe_report_recording_list_filters_changed(request, team=self.team)
-            response = list_recordings_response(
-                list_recordings_from_query(query, cast(User, request.user), team=self.team),
-                context=self.get_serializer_context(),
-            )
+            
+            # Use performance monitoring for the main query
+            with performance_monitor.monitor_operation("api_list_recordings", team_id=self.team.id):
+                response = list_recordings_response(
+                    list_recordings_from_query(query, cast(User, request.user), team=self.team),
+                    context=self.get_serializer_context(),
+                )
 
             return response
         except CHQueryErrorTooManySimultaneousQueries:
@@ -1308,12 +1312,10 @@ class SessionRecordingViewSet(TeamAndOrgViewSetMixin, viewsets.GenericViewSet, U
                 session_id=str(recording.session_id), team=self.team, limit=10, similarity_range=0.9
             )
 
-        recordings = []
-        recording_ids = []
-        for rec in similar_recordings:
-            recording_instance = SessionRecording.get_or_build(session_id=rec["session_id"], team=self.team)
-            recordings.append(recording_instance)
-            recording_ids.append(recording_instance.session_id)
+        # Optimize: Use bulk operations instead of individual get_or_build calls
+        session_ids = [rec["session_id"] for rec in similar_recordings]
+        recordings = SessionRecording.get_or_build_from_clickhouse(self.team, similar_recordings)
+        recording_ids = [recording.session_id for recording in recordings]
 
         # Filter out recordings that have been viewed by the current user
         with timer("filter_viewed_recordings"):
@@ -1328,6 +1330,7 @@ class SessionRecordingViewSet(TeamAndOrgViewSetMixin, viewsets.GenericViewSet, U
 
 
 # TODO i guess this becomes the query runner for our _internal_ use of RecordingsQuery
+@monitor_performance("list_recordings_from_query")
 def list_recordings_from_query(
     query: RecordingsQuery, user: User | None, team: Team
 ) -> tuple[list[SessionRecording], bool, str]:
