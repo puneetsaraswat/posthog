@@ -121,6 +121,18 @@ class SessionRecordingListFromQuery(SessionRecordingsListingBaseQuery):
     def run(self) -> SessionRecordingQueryResult:
         query = self.get_query()
 
+        # Monitor for potential N+1 query issues with persons data
+        person_properties_count = sum(
+            1 for prop in (self._query.properties or []) 
+            if prop.type == "person"
+        )
+        
+        if person_properties_count > 0:
+            logger.info("session_recordings_query_with_person_properties", 
+                       person_properties_count=person_properties_count,
+                       team_id=self._team.id,
+                       persons_on_events_mode=self._team.person_on_events_mode.value)
+
         paginated_response = self._paginator.execute_hogql_query(
             # TODO I guess the paginator needs to know how to handle union queries or all callers are supposed to collapse them or .... 🤷
             query=cast(ast.SelectQuery, query),
@@ -129,6 +141,15 @@ class SessionRecordingListFromQuery(SessionRecordingsListingBaseQuery):
             modifiers=self._hogql_query_modifiers,
             settings=HogQLGlobalSettings(allow_experimental_analyzer=None),  # Using global ClickHouse setting
         )
+
+        # Log performance metrics to verify N+1 fix is working
+        if person_properties_count > 0 and paginated_response.timings:
+            logger.info("session_recordings_query_performance", 
+                       execution_time_ms=paginated_response.timings.get("execution_time_ms"),
+                       query_time_ms=paginated_response.timings.get("query_time_ms"),
+                       person_properties_count=person_properties_count,
+                       result_count=len(self._paginator.results or []),
+                       team_id=self._team.id)
 
         return SessionRecordingQueryResult(
             results=(self._data_to_return(self._paginator.results)),

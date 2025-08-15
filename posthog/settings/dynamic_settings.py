@@ -38,7 +38,7 @@ CONSTANCE_CONFIG = {
     ),
     "PERSON_ON_EVENTS_V2_ENABLED": (
         get_from_env("PERSON_ON_EVENTS_V2_ENABLED", False, type_cast=str_to_bool),
-        "Whether to use query path using person_id and person_properties on events or the old query",
+        "Whether to use query path using person_id and person_properties on events or the old query. Note: Disabling this may affect query performance and existing workflows that depend on persons-on-events optimization.",
         bool,
     ),
     "AUTO_START_ASYNC_MIGRATIONS": (
