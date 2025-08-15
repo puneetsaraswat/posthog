@@ -67,6 +67,8 @@ Open source deployments should scale to approximately 100k events per month, aft
 
 We _do not_ provide customer support or offer guarantees for open source deployments. See our [self-hosting docs](https://posthog.com/docs/self-host), [troubleshooting guide](https://posthog.com/docs/self-host/deploy/troubleshooting), and [disclaimer](https://posthog.com/docs/self-host/open-source/disclaimer) for more info.
 
+**Important for self-hosted deployments**: The persons-on-events feature is disabled by default to maintain compatibility with existing workflows. This feature significantly improves query performance but changes how person properties are handled. You can enable it by setting `PERSON_ON_EVENTS_ENABLED=true` in your environment variables, but please review the migration documentation first.
+
 ## Setting up PostHog
 
 Once you've got a PostHog instance, you can set it up by installing our [JavaScript web snippet](https://posthog.com/docs/getting-started/install?tab=snippet), one of [our SDKs](https://posthog.com/docs/getting-started/install?tab=sdks), or by [using our API](https://posthog.com/docs/getting-started/install?tab=api).

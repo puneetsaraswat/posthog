@@ -33,12 +33,16 @@ CONSTANCE_CONFIG = {
     ),
     "PERSON_ON_EVENTS_ENABLED": (
         get_from_env("PERSON_ON_EVENTS_ENABLED", False, type_cast=str_to_bool),
-        "Whether to use query path using person_id and person_properties on events or the old query",
+        "Whether to use query path using person_id and person_properties on events or the old query. "
+        "Defaults to False for self-hosted deployments to maintain compatibility with existing workflows. "
+        "This setting significantly improves query performance but changes how person properties are handled. "
+        "See PostHog documentation for migration guidance if enabling this feature.",
         bool,
     ),
     "PERSON_ON_EVENTS_V2_ENABLED": (
         get_from_env("PERSON_ON_EVENTS_V2_ENABLED", False, type_cast=str_to_bool),
-        "Whether to use query path using person_id and person_properties on events or the old query",
+        "Enhanced version of persons on events with future merges support. "
+        "Defaults to False for self-hosted deployments. Requires PERSON_ON_EVENTS_ENABLED to be True.",
         bool,
     ),
     "AUTO_START_ASYNC_MIGRATIONS": (
